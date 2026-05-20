@@ -9,7 +9,7 @@
 #define WHEEL_RADIUS_M 0.3f
 #define WHEELBASE_M 1.0f
 
-#define ENABLE_LOG	1
+#define ENABLE_LOG	0
 #define ENABLE_LOG_DEBUG  0
 
 class Logger {
@@ -279,9 +279,14 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    if (!writeOutputToFile(output_file_path, outputData)) 
+    // if (!writeOutputToFile(output_file_path, outputData)) 
+    // {
+    //     return 1;
+    // }
+
+    for (auto line: outputData.lines) 
     {
-        return 1;
+        std::cout << line.timestamp_ms << " " << line.x << " " << line.y << " " << line.theta << "\n";
     }
 
     return 0;

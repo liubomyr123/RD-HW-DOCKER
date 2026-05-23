@@ -1,8 +1,8 @@
-#include "telemetry.hpp"
-
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
+
+#include "../include/telemetry.hpp"
 
 // Debugging exercise notes:
 // this file intentionally contains four runtime defects.

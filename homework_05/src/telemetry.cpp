@@ -1,8 +1,8 @@
-#include "telemetry.hpp"
-
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
+
+#include "../include/telemetry.hpp"
 
 // Debugging exercise notes:
 // this file intentionally contains four runtime defects.
@@ -43,7 +43,9 @@ long parse_long(const char* text) {
     const long value = std::strtol(text, &end, 10);
 
     if (end == text) {
-        std::abort();
+        // std::abort();
+        std::cerr << "error: parse invalid long number" << std::endl;
+        std::exit(1);
     }
 
     return value;
@@ -58,16 +60,27 @@ double parse_double(const char* text) {
     const double value = std::strtod(text, &end);
 
     if (end == text) {
-        std::abort();
+        // std::abort();
+        std::cerr << "error: parse invalid bouble number" << std::endl;
+        std::exit(1);
     }
 
     return value;
 }
 
-Frame parse_frame(char line[]) {
+Frame parse_frame(char line[], size_t line_number) {
     char* fields[EXPECTED_FIELD_COUNT] = {};
     const int field_count = split_line(line, fields, EXPECTED_FIELD_COUNT);
-    (void)field_count;
+    if (field_count != EXPECTED_FIELD_COUNT)
+    {
+        std::cerr 
+            << "error: invalid frame at line " << line_number 
+            << std::endl;
+        std::cerr << "error: found " << field_count  << " fields"
+            << ": expected " << EXPECTED_FIELD_COUNT << " fields" 
+            << std::endl;
+        std::exit(1);
+    }
 
     Frame frame{};
     frame.timestamp_ms = parse_long(fields[0]);
@@ -77,12 +90,56 @@ Frame parse_frame(char line[]) {
     frame.temperature_c = parse_double(fields[4]);
     frame.gps_fix = parse_int(fields[5]);
     frame.satellites = parse_int(fields[6]);
+
+    if (frame.voltage_v <= 0)
+    {
+        std::cerr << "error: invalid frame at line "
+            << line_number
+            << ": voltage_v <= 0"
+            << std::endl;
+        std::exit(1);
+    }
+    if (frame.satellites < 0)
+    {
+        std::cerr << "error: invalid frame at line "
+            << line_number
+            << ": satellites < 0"
+            << std::endl;
+        std::exit(1);
+    }
+    if (frame.gps_fix == 0 || frame.gps_fix == 1)
+    {
+        // Good, keep going...
+    }
+    else
+    {
+         std::cerr << "error: invalid frame at line "
+            << line_number
+            << ": gps_fix must be 0 or 1"
+            << std::endl;
+        std::exit(1);
+    }
+    if (frame.temperature_c >= -40 && frame.temperature_c <= 120)
+    {
+        // Good, keep going...
+    }
+    else
+    {
+        std::cerr << "error: invalid frame at line "
+            << line_number
+            << ": temperature_c out of range"
+            << std::endl;
+        std::exit(1);
+    }
     return frame;
 }
 
 double compute_frame_rate_hz(const Frame frames[], int frame_count) {
     const long elapsed_ms = frames[frame_count - 1].timestamp_ms - frames[0].timestamp_ms;
 
+    if (elapsed_ms == 0) {
+        return 0.0;
+    }
     return static_cast<double>((frame_count - 1) * 1000 / elapsed_ms);
 }
 
@@ -96,14 +153,37 @@ int read_frames(const char* path, Frame frames[], int max_frames) {
     int frame_count = 0;
     char line[MAX_LINE_LENGTH];
 
+    size_t count = 0; 
     while (input.getline(line, MAX_LINE_LENGTH)) {
+        count++;
         if (line[0] == '\0') {
             continue;
         }
 
         if (frame_count < max_frames) {
-            frames[frame_count] = parse_frame(line);
+            frames[frame_count] = parse_frame(line, count);
             ++frame_count;
+        }
+    }
+
+    for (int i = 1; i < frame_count; ++i)
+    {
+        if (frames[i].timestamp_ms <= frames[i-1].timestamp_ms) 
+        {
+            std::cerr << "error: invalid frame at line "
+                    << i+1
+                    << ": timestamp not increasing"
+                    << std::endl;
+            std::exit(1);
+        }
+
+        if (frames[i].seq != frames[i-1].seq + 1) 
+        {
+            std::cerr << "error: invalid frame at line "
+                    << i+1
+                    << ": seq mismatch"
+                    << std::endl;
+            std::exit(1);
         }
     }
 
@@ -112,6 +192,11 @@ int read_frames(const char* path, Frame frames[], int max_frames) {
 
 Summary summarize(const Frame frames[], int frame_count) {
     Summary summary{};
+    if (frame_count == 0) {
+        std::cerr << "error: no valid frames in input" << std::endl;
+        std::exit(1);
+    }
+
     summary.frames_total = frame_count;
     summary.frames_valid = frame_count;
     summary.voltage_min = frames[0].voltage_v;

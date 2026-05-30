@@ -17,7 +17,6 @@ FetchContent_Declare(
                    DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
 
 FetchContent_MakeAvailable(googletest)
-
 include(GoogleTest)
 
 add_executable(ballistics_tests tests/ballistics_tests.cpp)
@@ -26,4 +25,4 @@ target_link_libraries(ballistics_tests PRIVATE ballistics_lib GTest::gtest_main)
 
 target_compile_options(ballistics_tests PRIVATE -Wall -Wextra -pedantic)
 
-gtest_discover_tests(ballistics_tests)
+gtest_discover_tests(ballistics_tests DISCOVERY_MODE PRE_TEST)

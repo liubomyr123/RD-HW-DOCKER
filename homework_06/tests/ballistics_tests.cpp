@@ -69,9 +69,8 @@ TEST(Ballistics, ReferenceFullPipeline)
   OutputData out{};
   ASSERT_TRUE(getAmmoDropPoint(out, input, ammo, dist, range));
 
-  EXPECT_NEAR(out.fireX, out.fireY, 1e-3);
-  EXPECT_GT(out.fireX, 0.0);
-  EXPECT_GT(out.fireY, 0.0);
+  EXPECT_NEAR(out.fireX, 173.759, 0.01);
+  EXPECT_NEAR(out.fireY, 173.759, 0.01);
 }
 
 TEST(Ballistics, UnknownAmmoIsHandledSafely)

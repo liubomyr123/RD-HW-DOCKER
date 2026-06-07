@@ -350,3 +350,32 @@ struct Simulation
         }
     }
 };
+
+// Провайдер цілей: кількість та дані кожної цілі (позиція, швидкість)
+class ITargetProvider
+{
+public:
+    bool load();
+    virtual int getTargetCount() = 0;
+    virtual Coord* getTarget(int idx) = 0;
+    virtual TargetsData getTargetsData() = 0;
+    virtual ~ITargetProvider() {}
+};
+
+// Калькулятор балістики: обчислює точку скиду
+class IBallisticSolver
+{
+public:
+    virtual bool solve() = 0;
+    virtual ~IBallisticSolver() {}
+};
+
+// Завантажувач даних: конфіг місії та параметри боєприпасу
+class IConfigLoader
+{
+public:
+    virtual bool load() = 0;
+    virtual DroneConfig* getConfig() = 0;
+    virtual AmmoParams* getAmmoParams() = 0;
+    virtual ~IConfigLoader() {}
+};

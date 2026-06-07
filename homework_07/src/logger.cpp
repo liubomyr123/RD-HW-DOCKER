@@ -1,0 +1,22 @@
+#include "../include/logger.hpp"
+
+#include <iostream>
+
+Logger::Logger() 
+{
+    file.open("data/app.log", std::ios::out | std::ios::trunc);
+}
+
+Logger& Logger::instance() 
+{
+    static Logger logger;
+    return logger;
+}
+
+void Logger::log(const std::string& type, const std::string& msg) 
+{
+    std::string line = type + " " + msg;
+
+    std::cout << line << '\n';
+    file << line << '\n';
+}

@@ -24,4 +24,6 @@ cmake --build --preset relwithdebinfo &&
 # ./build/relwithdebinfo/homework_05/telemetry_check homework_05/data/bad_missing_field.txt
 # ./build/relwithdebinfo/homework_05/telemetry_check homework_05/data/bad_zero_delta.txt
 # ./build/relwithdebinfo/homework_05/telemetry_check homework_05/data/empty.txt
-./build/relwithdebinfo/homework_05/telemetry_check homework_05/data/good.txt
+# ./build/relwithdebinfo/homework_05/telemetry_check homework_05/data/good.txt
+# ./build/relwithdebinfo/homework_05/telemetry_check homework_05/data/bad_extra_field.txt
+./build/relwithdebinfo/homework_05/telemetry_check homework_05/data/bad_trailing_chars.txt

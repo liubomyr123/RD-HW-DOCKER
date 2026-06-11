@@ -42,8 +42,7 @@ long parse_long(const char* text) {
     char* end = nullptr;
     const long value = std::strtol(text, &end, 10);
 
-    if (end == text) {
-        // std::abort();
+    if (end == text || *end != '\0') {
         std::cerr << "error: parse invalid long number" << std::endl;
         std::exit(1);
     }
@@ -59,9 +58,8 @@ double parse_double(const char* text) {
     char* end = nullptr;
     const double value = std::strtod(text, &end);
 
-    if (end == text) {
-        // std::abort();
-        std::cerr << "error: parse invalid bouble number" << std::endl;
+    if (end == text || *end != '\0') {
+        std::cerr << "error: parse invalid double number" << std::endl;
         std::exit(1);
     }
 
@@ -69,8 +67,8 @@ double parse_double(const char* text) {
 }
 
 Frame parse_frame(char line[], size_t line_number) {
-    char* fields[EXPECTED_FIELD_COUNT] = {};
-    const int field_count = split_line(line, fields, EXPECTED_FIELD_COUNT);
+    char* fields[EXPECTED_FIELD_COUNT + 1] = {};
+    const int field_count = split_line(line, fields, EXPECTED_FIELD_COUNT + 1);
     if (field_count != EXPECTED_FIELD_COUNT)
     {
         std::cerr 

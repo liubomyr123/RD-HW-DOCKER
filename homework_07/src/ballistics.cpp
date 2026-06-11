@@ -6,7 +6,7 @@
 #include <fstream>
 #include <string>
 
-bool getJSONDroneConfig(DroneConfig* droneConfig, std::string CONFIG_JSON_FILE_NAME)
+bool getJSONDroneConfig(DroneConfig* droneConfig)
 {
     LOG_PROCESS("Reading " + CONFIG_JSON_FILE_NAME + "...");
     try
@@ -81,7 +81,7 @@ bool getJSONDroneConfig(DroneConfig* droneConfig, std::string CONFIG_JSON_FILE_N
     return true;
 }
 
-bool getTargetsJSONData(TargetsData& targetsData, std::string TARGETS_JSON_FILE_NAME)
+bool getTargetsJSONData(TargetsData& targetsData)
 {
     // LOG_PROCESS("Reading " + TARGETS_JSON_FILE_NAME + "...");
     try
@@ -143,7 +143,7 @@ bool getTargetsJSONData(TargetsData& targetsData, std::string TARGETS_JSON_FILE_
     return true;
 }
 
-bool getJSONAmmoParamByType(const std::string& ammo_name, AmmoParams* ammoParam, std::string AMMO_JSON_FILE_NAME)
+bool getJSONAmmoParamByType(const std::string& ammo_name, AmmoParams* ammoParam)
 {
     // LOG_PROCESS("Searching ammo info for " << ammo_name << "...");
     bool found = false;
@@ -624,7 +624,7 @@ bool getAcceleration(float& result, const DroneConfig * const droneConfig)
     return true;
 }
 
-bool writeOutputToFile(const OutputData& outputData, std::string SIMULATION_JSON_FILE_NAME)
+bool writeOutputToFile(const OutputData& outputData)
 {
     // LOG_PROCESS("Writing result to " << SIMULATION_JSON_FILE_NAME << "...");
 
@@ -687,14 +687,6 @@ bool writeOutputToFile(const OutputData& outputData, std::string SIMULATION_JSON
 
 
 
-
-
-
-#define CONFIG_JSON_FILE_NAME "data/config.json"
-#define AMMO_JSON_FILE_NAME "data/ammo.json"
-#define TARGETS_JSON_FILE_NAME "data/targets.json"
-#define SIMULATION_JSON_FILE_NAME "data/simulation.json"
-
 // Завантажує цілі з JSON-файлу
 class JsonTargetProvider : public ITargetProvider
 {
@@ -725,191 +717,18 @@ public:
 // Аналітичне рішення (формула з ДЗ1)
 class AnalyticalSolver : public IBallisticSolver
 {
-    virtual bool solve() override
-    {
-        return true;
-    }
-};
-
-// Читає конфіг та параметри боєприпасу з файлу
-class FileConfigLoader : public IConfigLoader
-{
-    DroneConfig *droneConfig = nullptr;
-    AmmoParams *ammoParam = nullptr;
-public:
-    bool load() override
-    {
-        droneConfig = new DroneConfig();
-        if (!getJSONDroneConfig(droneConfig, CONFIG_JSON_FILE_NAME))
-        {
-            return false;
-        }
-        ammoParam = new AmmoParams();
-        if (!getJSONAmmoParamByType(droneConfig->ammoName, ammoParam, AMMO_JSON_FILE_NAME))
-        {
-            return false;
-        }
-        return true;
-    }
-    AmmoParams* getAmmoParams() override
-    {
-        return ammoParam;
-    }
-    DroneConfig* getConfig() override
-    {
-        return droneConfig;
-    }
-    ~FileConfigLoader()
-    {
-        if (droneConfig != nullptr)
-        {
-            delete droneConfig;
-        }
-        if (ammoParam != nullptr)
-        {
-            delete ammoParam;
-        }
-    }
-};
-
-enum class SolverType   { ANALYTICAL };
-enum class ProviderType { JSON };
-enum class LoaderType   { FILE };
- 
-IBallisticSolver* createSolver(SolverType type)
-{
-    IBallisticSolver* provider = nullptr;
-    switch (type) {
-        case SolverType::ANALYTICAL:
-        {
-            provider = new AnalyticalSolver();
-            break;
-        }
-        default:
-        {
-            provider = nullptr;
-            break;
-        }
-    }
-    return provider;
-}
-ITargetProvider* createProvider(ProviderType type, std::string param)
-{
-    ITargetProvider* provider = nullptr;
-    switch (type) {
-        case ProviderType::JSON:
-        {
-            provider = new JsonTargetProvider();
-            break;
-        }
-        default:
-        {
-            provider = nullptr;
-            break;
-        }
-    }
-    return provider;
-}
-IConfigLoader* createLoader(LoaderType type)
-{
-    IConfigLoader* provider = nullptr;
-    switch (type) {
-        case LoaderType::FILE:
-        {
-            provider = new FileConfigLoader();
-            break;
-        }
-        default:
-        {
-            provider = nullptr;
-            break;
-        }
-    }
-    return provider;
-}
-
-class MissionProcessor
-{
-    IBallisticSolver* solver = nullptr;
-    ITargetProvider* targets = nullptr;
-    DroneConfig* droneConfig = nullptr;
-    AmmoParams* ammoParams = nullptr;
-
-    SimState state{};
-    OutputData outputData{};
-    float ammoTimeOfFlight = 0.0f;
-    float horizontalFlightRange = 0.0f;
-    float acceleration = 0.0f;
-
-    int simulation_count = 0;
-
-    MissionProcessor(IBallisticSolver* s, ITargetProvider* t) : solver(s), targets(t) {}
-
-    // Завантажити конфіг через IConfigLoader, підготувати дані для ітерації
-    bool init(LoaderType type)
-    {
-        IConfigLoader* configLoader = createLoader(type);
-        if (configLoader == nullptr)
-        {
-            return false;
-        }
-        if (!configLoader->load())
-        {
-            return false;
-        }
-        droneConfig = configLoader->getConfig();
-        ammoParams = configLoader->getAmmoParams();
-        if (droneConfig == nullptr || ammoParams == nullptr)
-        {
-            return false;
-        }
-        if (targets == nullptr)
-        {
-            return false;
-        }
-        if (!targets->load())
-        {
-            return false;
-        }
-        if (!getAmmoTimeOfFlight(ammoTimeOfFlight, droneConfig, ammoParams)) 
-        {
-            return false;
-        }
-        if (!getHorizontalFlightRange(horizontalFlightRange, droneConfig, ammoParams, ammoTimeOfFlight)) 
-        {
-            return false;
-        }
-        if (!getAcceleration(acceleration, droneConfig)) 
-        {
-            return false;
-        }
-        // 
-        state.dronePosition = droneConfig->startPos;
-        state.droneZ = droneConfig->altitude;
-        // 
-        state.droneDir = droneConfig->initialDir;
-        state.dropPointDir = droneConfig->initialDir;
-        state.droneState = STOPPED;
-        // 
-        return true;
-    }
-    // Перевірити, чи є ще необроблені цілі
-    bool hasNext()
-    {
-        if (simulation_count <= SIM_MAX_STEPS)
-        {
-            return true;
-        }
-        return false;
-    }
-    // Обробити наступну ціль: взяти дані з ITargetProvider, обчислити через IBallisticSolver, повернути DropPoint
-    bool step()
+    virtual bool solve(
+        SimState& state, 
+        ITargetProvider* targets,
+        OutputData outputData,
+        const DroneConfig* droneConfig, 
+        float horizontalFlightRange,
+        float ammoTimeOfFlight,
+        float acceleration,
+        int simulation_count) override
     {
         int targets_number = targets->getTargetCount();
         TargetsData targetsData = targets->getTargetsData();
-        // 1. Взяти наступну ціль через targets->getTarget(currentIdx)
-        // 2. Викликати solver->solve(dronePos, target.pos, altitude, ammo ...)
-        // 3. Збільшити лічильник, повернути результат
 
         LOG_DEBUG("------ FRAME " << count << " ------");
         LOG_INFO("Total simulation time elapsed: " << sim.state.totalSimTime << "[s]");
@@ -1500,40 +1319,217 @@ class MissionProcessor
             default:
                 break;
         }
-
-        simulation_count++;
-        state.totalSimTime = simulation_count * droneConfig->simTimeStep;
-        LOG_INFO("");
-
-        return true;
-    }
-    // Почати ітерацію спочатку
-    bool reset()
-    {
-        return true;
-    }
-    // Підмінити solver на льоту (Стратегія)
-    bool changeSolver(IBallisticSolver* newSolver)
-    {
-        if (newSolver == nullptr)
-        {
-            LOG_WARN("New solver is NULL");
-            if (solver == nullptr)
-            {
-                LOG_WARN("Current solver is also NULL");
-            }
-            return false;
-        }
-        if (solver == nullptr)
-        {
-            LOG_WARN("Current solver is NULL");
-        }
-        else
-        {
-            delete solver;
-            solver = nullptr;
-        }
-        solver = newSolver;
-        return true;
     }
 };
+
+// Читає конфіг та параметри боєприпасу з файлу
+class FileConfigLoader : public IConfigLoader
+{
+    DroneConfig *droneConfig = nullptr;
+    AmmoParams *ammoParam = nullptr;
+public:
+    bool load() override
+    {
+        droneConfig = new DroneConfig();
+        if (!getJSONDroneConfig(droneConfig))
+        {
+            return false;
+        }
+        ammoParam = new AmmoParams();
+        if (!getJSONAmmoParamByType(droneConfig->ammoName, ammoParam, AMMO_JSON_FILE_NAME))
+        {
+            return false;
+        }
+        return true;
+    }
+    AmmoParams* getAmmoParams() override
+    {
+        return ammoParam;
+    }
+    DroneConfig* getConfig() override
+    {
+        return droneConfig;
+    }
+    ~FileConfigLoader()
+    {
+        if (droneConfig != nullptr)
+        {
+            delete droneConfig;
+        }
+        if (ammoParam != nullptr)
+        {
+            delete ammoParam;
+        }
+    }
+};
+
+IBallisticSolver* createSolver(SolverType type)
+{
+    IBallisticSolver* provider = nullptr;
+    switch (type) {
+        case SolverType::ANALYTICAL:
+        {
+            provider = new AnalyticalSolver();
+            break;
+        }
+        default:
+        {
+            provider = nullptr;
+            break;
+        }
+    }
+    return provider;
+}
+ITargetProvider* createProvider(ProviderType type)
+{
+    ITargetProvider* provider = nullptr;
+    switch (type) {
+        case ProviderType::JSON:
+        {
+            provider = new JsonTargetProvider();
+            break;
+        }
+        default:
+        {
+            provider = nullptr;
+            break;
+        }
+    }
+    return provider;
+}
+IConfigLoader* createLoader(LoaderType type)
+{
+    IConfigLoader* provider = nullptr;
+    switch (type) {
+        case LoaderType::FILE:
+        {
+            provider = new FileConfigLoader();
+            break;
+        }
+        default:
+        {
+            provider = nullptr;
+            break;
+        }
+    }
+    return provider;
+}
+
+MissionProcessor::MissionProcessor(IBallisticSolver* s, ITargetProvider* t)
+    : solver(s), targets(t)
+{
+    simulation_count = 0;
+    droneConfig = nullptr;
+    ammoParams = nullptr;
+}
+
+bool MissionProcessor::reset()
+{
+    return true;
+}
+
+bool MissionProcessor::changeSolver(IBallisticSolver* newSolver)
+{
+    if (newSolver == nullptr)
+    {
+        LOG_WARN("New solver is NULL");
+        if (solver == nullptr)
+        {
+            LOG_WARN("Current solver is also NULL");
+        }
+        return false;
+    }
+    if (solver == nullptr)
+    {
+        LOG_WARN("Current solver is NULL");
+    }
+    else
+    {
+        delete solver;
+        solver = nullptr;
+    }
+    solver = newSolver;
+    return true;
+}
+
+bool MissionProcessor::step()
+{
+    if (solver == nullptr)
+    {
+        return false;
+    }
+    solver->solve();
+    // 1. Взяти наступну ціль через targets->getTarget(currentIdx)
+    // 2. Викликати solver->solve(dronePos, target.pos, altitude, ammo ...)
+    // 3. Збільшити лічильник, повернути результат
+    simulation_count++;
+    state.totalSimTime = simulation_count * droneConfig->simTimeStep;
+    return true;
+}
+
+bool MissionProcessor::hasNext()
+{
+    if (simulation_count <= SIM_MAX_STEPS)
+    {
+        return true;
+    }
+    return false;
+}
+
+bool MissionProcessor::init(LoaderType type)
+{
+    IConfigLoader* configLoader = createLoader(type);
+    if (configLoader == nullptr)
+    {
+        return false;
+    }
+    if (!configLoader->load())
+    {
+        return false;
+    }
+    droneConfig = configLoader->getConfig();
+    ammoParams = configLoader->getAmmoParams();
+    if (droneConfig == nullptr || ammoParams == nullptr)
+    {
+        return false;
+    }
+    if (targets == nullptr)
+    {
+        return false;
+    }
+    if (!targets->load())
+    {
+        return false;
+    }
+    if (!getAmmoTimeOfFlight(ammoTimeOfFlight, droneConfig, ammoParams)) 
+    {
+        return false;
+    }
+    if (!getHorizontalFlightRange(horizontalFlightRange, droneConfig, ammoParams, ammoTimeOfFlight)) 
+    {
+        return false;
+    }
+    if (!getAcceleration(acceleration, droneConfig)) 
+    {
+        return false;
+    }
+    // 
+    state.dronePosition = droneConfig->startPos;
+    state.droneZ = droneConfig->altitude;
+    // 
+    state.droneDir = droneConfig->initialDir;
+    state.dropPointDir = droneConfig->initialDir;
+    state.droneState = STOPPED;
+    // 
+    return true;
+}
+
+bool MissionProcessor::writeOutput()
+{
+    outputData.totalSteps = simulation_count;
+    if (!writeOutputToFile(outputData, SIMULATION_JSON_FILE_NAME)) 
+    {
+        return false;
+    }
+    return true;
+}

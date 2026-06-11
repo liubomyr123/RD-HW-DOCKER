@@ -10,6 +10,11 @@ using json = nlohmann::json;
 #define GRAVITATIONAL_ACCELERATION 9.81f
 #define SIM_MAX_STEPS 10000
 
+#define CONFIG_JSON_FILE_NAME "data/config.json"
+#define AMMO_JSON_FILE_NAME "data/ammo.json"
+#define TARGETS_JSON_FILE_NAME "data/targets.json"
+#define SIMULATION_JSON_FILE_NAME "data/simulation.json"
+
 struct Coord {
 	float x;
 	float y;
@@ -379,3 +384,44 @@ public:
     virtual AmmoParams* getAmmoParams() = 0;
     virtual ~IConfigLoader() {}
 };
+
+
+enum class SolverType   { ANALYTICAL };
+enum class ProviderType { JSON };
+enum class LoaderType   { FILE };
+
+class MissionProcessor
+{   
+private:
+    IBallisticSolver* solver;
+    ITargetProvider* targets;
+    DroneConfig* droneConfig;
+    AmmoParams* ammoParams;
+
+    SimState state;
+    OutputData outputData;
+    float ammoTimeOfFlight;
+    float horizontalFlightRange;
+    float acceleration;
+
+    int simulation_count;
+
+public:
+    MissionProcessor(IBallisticSolver* s, ITargetProvider* t);
+
+    // Завантажити конфіг через IConfigLoader, підготувати дані для ітерації
+    bool init(LoaderType type);
+    // Перевірити, чи є ще необроблені цілі
+    bool hasNext();
+    // Обробити наступну ціль: взяти дані з ITargetProvider, обчислити через IBallisticSolver, повернути DropPoint
+    bool step();
+    // Почати ітерацію спочатку
+    bool reset();
+    // Підмінити solver на льоту (Стратегія)
+    bool changeSolver(IBallisticSolver* newSolver);
+    bool writeOutput();
+};
+
+IBallisticSolver* createSolver(SolverType type);
+ITargetProvider* createProvider(ProviderType type);
+IConfigLoader* createLoader(LoaderType type);

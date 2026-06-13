@@ -1,6 +1,5 @@
-#include "telemetry.hpp"
-
 #include <iostream>
+#include "../include/telemetry.hpp"
 
 int main(int argc, char** argv) {
     // The executable expects exactly one telemetry log path.

@@ -1,4 +1,8 @@
-#include "../include/ballistics.hpp"
+#include "Common.hpp"
+#include "base/MissionProcessor.hpp"
+#include "interfaces/IBallisticSolver.hpp"
+#include "factories/SolverFactory.hpp"
+#include "factories/ProviderFactory.hpp"
 
 #ifdef _WIN32
 #include <windows.h>

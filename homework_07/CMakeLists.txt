@@ -2,11 +2,20 @@ cmake_minimum_required(VERSION 3.20)
 
 project(ballistics_hw_7 CXX)
 
-add_library(ballistics_lib src/ballistics.cpp)
+add_library(ballistics_lib
+    src/base/Ballistics.cpp
+    src/base/MissionProcessor.cpp
+    src/factories/LoaderFactory.cpp
+    src/factories/ProviderFactory.cpp
+    src/factories/SolverFactory.cpp
+    src/loaders/FileConfigLoader.cpp
+    src/providers/JsonTargetProvider.cpp
+    src/solvers/AnalyticalSolver.cpp
+)
 target_include_directories(ballistics_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_options(ballistics_lib PRIVATE -Wall -Wextra -pedantic)
 
-add_library(logger_lib src/logger.cpp)
+add_library(logger_lib src/base/Logger.cpp)
 target_include_directories(logger_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_options(logger_lib PRIVATE -Wall -Wextra -pedantic)
 

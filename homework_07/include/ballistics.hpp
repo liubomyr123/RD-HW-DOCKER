@@ -3,7 +3,6 @@
 #include <string>
 #include <cmath>
 #include "json.hpp"
-#include "logger.hpp"
 
 using json = nlohmann::json;
 
@@ -247,6 +246,8 @@ struct SimStep {
 };
 
 struct SimState {
+    bool finished = false;
+
     float totalSimTime = 0.0f;
 
     Coord dronePosition;
@@ -260,6 +261,8 @@ struct SimState {
 
     DroneState droneState = STOPPED;
     int currentTargetIndex = -1;
+
+    int simulation_count = 0;
 };
 
 struct OutputData {
@@ -273,9 +276,9 @@ struct TargetsData {
     Coord** targets = nullptr;
 };
 
-bool getJSONDroneConfig(DroneConfig* droneConfig, std::string);
-bool getTargetsJSONData(TargetsData& targetsData, std::string);
-bool getJSONAmmoParamByType(const std::string& ammo_name, AmmoParams* ammoParam, std::string);
+bool getJSONDroneConfig(DroneConfig* droneConfig);
+bool getTargetsJSONData(TargetsData& targetsData);
+bool getJSONAmmoParamByType(const std::string& ammo_name, AmmoParams* ammoParam);
 bool getAmmoTimeOfFlight(float& result, 
     const DroneConfig * const droneConfig,
     const AmmoParams * const ammoParam);
@@ -290,15 +293,15 @@ bool getAmmoDropPoint(Coord& result,
     const float& h, 
     const Coord& target);
 bool interpolate(Coord& result, 
-    const int& targetIndex,
+    const int& timeSteps,
     const float& timeFrame,
     const DroneConfig * const droneConfig,
-    const TargetsData& targetsData);
+    const Coord* const target);
 bool getTargetVelocity(Coord& result, 
-    const int targetIndex,
+    const int& timeSteps,
     const SimState& state, 
     const DroneConfig * const droneConfig,
-    const TargetsData& targetsData);
+    const Coord* const target);
 bool getPredictedPosition(Coord& result, 
     const Coord& targetVelocity,
     const Coord& targetPosition,
@@ -308,71 +311,30 @@ bool getTimeToTarget(float& result,
     const float& speed);
 bool getNormalizedAngle(float& result);
 bool getAcceleration(float& result, const DroneConfig * const droneConfig);
-bool writeOutputToFile(const OutputData& outputData, std::string);
-
-struct Simulation
-{
-    DroneConfig* droneConfig = nullptr;
-    AmmoParams* ammoParam = nullptr;
-    TargetsData targetsData{};
-    OutputData outputData{};
-    SimState state{};
-
-    ~Simulation()
-    {
-        cleanup();
-    }
-
-    void cleanup()
-    {
-        LOG_PROCESS("Cleaning up memory...");
-        delete droneConfig;
-        droneConfig = nullptr;
-        delete ammoParam;
-        ammoParam = nullptr;
-
-        if (targetsData.targets)
-        {
-            for (int i = 0; i < targetsData.targetCount; i++)
-                delete[] targetsData.targets[i];
-
-            delete[] targetsData.targets;
-            targetsData.targets = nullptr;
-        }
-
-        if (outputData.steps)
-        {
-            for (size_t i = 0; i < outputData.totalSteps; i++)
-            {
-                delete outputData.steps[i];
-                outputData.steps[i] = nullptr;
-            }
-
-            delete[] outputData.steps;
-            outputData.steps = nullptr;
-            
-            outputData.totalSteps = 0;
-        }
-    }
-};
+bool writeOutputToFile(const OutputData& outputData);
 
 // Провайдер цілей: кількість та дані кожної цілі (позиція, швидкість)
 class ITargetProvider
 {
 public:
-    bool load();
-    virtual int getTargetCount() = 0;
-    virtual Coord* getTarget(int idx) = 0;
-    virtual TargetsData getTargetsData() = 0;
-    virtual ~ITargetProvider() {}
+    virtual bool load() = 0;
+    virtual int getTargetCount() const = 0;
+    virtual Coord* getTarget(int idx) const = 0;
+    virtual int getTargetsTimeSteps() const = 0;
+    virtual ~ITargetProvider() = default;
 };
 
 // Калькулятор балістики: обчислює точку скиду
 class IBallisticSolver
 {
 public:
-    virtual bool solve() = 0;
-    virtual ~IBallisticSolver() {}
+    virtual bool solve(
+        const DroneConfig* const droneConfig,
+        const AmmoParams* const ammoParams,
+        const ITargetProvider* const targets,
+        SimState& state, 
+        OutputData& outputData) = 0;
+    virtual ~IBallisticSolver() = default;
 };
 
 // Завантажувач даних: конфіг місії та параметри боєприпасу
@@ -380,11 +342,10 @@ class IConfigLoader
 {
 public:
     virtual bool load() = 0;
-    virtual DroneConfig* getConfig() = 0;
-    virtual AmmoParams* getAmmoParams() = 0;
-    virtual ~IConfigLoader() {}
+    virtual DroneConfig* getConfig() const = 0;
+    virtual AmmoParams* getAmmoParams() const = 0;
+    virtual ~IConfigLoader() = default;
 };
-
 
 enum class SolverType   { ANALYTICAL };
 enum class ProviderType { JSON };
@@ -400,11 +361,6 @@ private:
 
     SimState state;
     OutputData outputData;
-    float ammoTimeOfFlight;
-    float horizontalFlightRange;
-    float acceleration;
-
-    int simulation_count;
 
 public:
     MissionProcessor(IBallisticSolver* s, ITargetProvider* t);
@@ -420,6 +376,39 @@ public:
     // Підмінити solver на льоту (Стратегія)
     bool changeSolver(IBallisticSolver* newSolver);
     bool writeOutput();
+
+    ~MissionProcessor()
+    {
+        if (solver != nullptr)
+        {
+            delete solver;
+        }
+        if (targets != nullptr)
+        {
+            delete targets;
+        }
+        if (droneConfig != nullptr)
+        {
+            delete droneConfig;
+        }
+        if (ammoParams != nullptr)
+        {
+            delete ammoParams;
+        }
+        if (outputData.steps)
+        {
+            for (size_t i = 0; i < outputData.totalSteps; i++)
+            {
+                delete outputData.steps[i];
+                outputData.steps[i] = nullptr;
+            }
+
+            delete[] outputData.steps;
+            outputData.steps = nullptr;
+            
+            outputData.totalSteps = 0;
+        }
+    }
 };
 
 IBallisticSolver* createSolver(SolverType type);

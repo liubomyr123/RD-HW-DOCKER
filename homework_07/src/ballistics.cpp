@@ -4,11 +4,12 @@
 #include <cmath>
 #include <cstdlib>
 #include <fstream>
+#include <iostream>
 #include <string>
 
 bool getJSONDroneConfig(DroneConfig* droneConfig)
 {
-    LOG_PROCESS("Reading " + CONFIG_JSON_FILE_NAME + "...");
+    LOG_PROCESS("Reading " << CONFIG_JSON_FILE_NAME << "...");
     try
     {
         if (droneConfig == nullptr)
@@ -83,7 +84,7 @@ bool getJSONDroneConfig(DroneConfig* droneConfig)
 
 bool getTargetsJSONData(TargetsData& targetsData)
 {
-    // LOG_PROCESS("Reading " + TARGETS_JSON_FILE_NAME + "...");
+    LOG_PROCESS("Reading " << TARGETS_JSON_FILE_NAME << "...");
     try
     {
         std::ifstream file(TARGETS_JSON_FILE_NAME);
@@ -138,14 +139,14 @@ bool getTargetsJSONData(TargetsData& targetsData)
         return false;
     }
 
-    // LOG_SUCCESS("Successfully read all data for " << 5 << " targets.");
+    LOG_SUCCESS("Successfully read all data for " << 5 << " targets.");
 
     return true;
 }
 
 bool getJSONAmmoParamByType(const std::string& ammo_name, AmmoParams* ammoParam)
 {
-    // LOG_PROCESS("Searching ammo info for " << ammo_name << "...");
+    LOG_PROCESS("Searching ammo info for " << ammo_name << "...");
     bool found = false;
     try
     {
@@ -184,7 +185,7 @@ bool getJSONAmmoParamByType(const std::string& ammo_name, AmmoParams* ammoParam)
 
     if (found)
     {
-        // LOG_SUCCESS("Successfully found ammo type.");
+        LOG_SUCCESS("Successfully found ammo type.");
         LOG_INFO("📄 Result:");
         LOG_INFO("  - Ammo name: " << ammoParam->name);
         LOG_INFO("  - m: " << ammoParam->mass);
@@ -193,7 +194,7 @@ bool getJSONAmmoParamByType(const std::string& ammo_name, AmmoParams* ammoParam)
         return true;
     }
 
-    // LOG_ERROR("Ammo was not found");
+    LOG_ERROR("Ammo was not found");
     return false;
 }
 
@@ -397,10 +398,10 @@ bool getAmmoDropPoint(Coord& result,
 }
 
 bool interpolate(Coord& result, 
-    const int& targetIndex,
+    const int& timeSteps,
     const float& timeFrame,
     const DroneConfig * const droneConfig,
-    const TargetsData& targetsData)
+    const Coord* const target)
 {
     // LOG_PROCESS("Calculating new interpolated position...");
 
@@ -422,17 +423,17 @@ bool interpolate(Coord& result,
 
     float t = timeFrame;
     
-    int idx = (int)std::floor(t / droneConfig->arrayTimeStep) % targetsData.timeSteps;
-    int next = (idx + 1) % targetsData.timeSteps;
+    int idx = (int)std::floor(t / droneConfig->arrayTimeStep) % timeSteps;
+    int next = (idx + 1) % timeSteps;
     float frac = (t - idx * droneConfig->arrayTimeStep) / droneConfig->arrayTimeStep;
 
-    float x0 = targetsData.targets[targetIndex][idx].x;
-    float x1 = targetsData.targets[targetIndex][next].x;
+    auto x0 = target[idx].x;
+    auto x1 = target[next].x;
     float x = x0 + (x1 - x0) * frac;
     result.x = x;
 
-    float y0 = targetsData.targets[targetIndex][idx].y;
-    float y1 = targetsData.targets[targetIndex][next].y;
+    auto y0 = target[idx].y;
+    auto y1 = target[next].y;
     float y = y0 + (y1 - y0) * frac;
     result.y = y;
 
@@ -449,10 +450,10 @@ bool interpolate(Coord& result,
 }
 
 bool getTargetVelocity(Coord& result, 
-    const int targetIndex,
+    const int& timeSteps,
     const SimState& state, 
     const DroneConfig * const droneConfig,
-    const TargetsData& targetsData)
+    const Coord* const target)
 {
     // LOG_PROCESS("Calculating target velocity...");
 
@@ -481,12 +482,12 @@ bool getTargetVelocity(Coord& result,
     float timeFrame1 = t + dt;
 
     Coord currentPos{};
-    if (!interpolate(currentPos, targetIndex, timeFrame0, droneConfig, targetsData))
+    if (!interpolate(currentPos, timeSteps, timeFrame0, droneConfig, target))
     {
         return false;
     }
     Coord nextPos{};
-    if (!interpolate(nextPos, targetIndex, timeFrame1, droneConfig, targetsData))
+    if (!interpolate(nextPos, timeSteps, timeFrame1, droneConfig, target))
     {
         return false;
     }
@@ -692,52 +693,78 @@ class JsonTargetProvider : public ITargetProvider
 {
     TargetsData targetsData;
 public:
-    bool load()
+    bool load() override
     {
-        if (!getTargetsJSONData(targetsData, TARGETS_JSON_FILE_NAME))
+        if (!getTargetsJSONData(targetsData))
         {
             return false;
         }
         return true;
     }
-    int getTargetCount() override
+    int getTargetCount() const override
     {
         return targetsData.targetCount;
     }
-    Coord* getTarget(int idx) override
+    Coord* getTarget(int idx) const override
     {
         return targetsData.targets[idx];
     }
-    TargetsData getTargetsData() override
+    int getTargetsTimeSteps() const override
     {
-        return targetsData;
+        return targetsData.timeSteps;
+    }
+    ~JsonTargetProvider()
+    {
+        if (targetsData.targets)
+        {
+            for (int i = 0; i < targetsData.targetCount; i++)
+                delete[] targetsData.targets[i];
+
+            delete[] targetsData.targets;
+            targetsData.targets = nullptr;
+        }
     }
 };
 
 // Аналітичне рішення (формула з ДЗ1)
 class AnalyticalSolver : public IBallisticSolver
 {
+    float ammoTimeOfFlight;
+    float horizontalFlightRange;
+    float acceleration;
+
     virtual bool solve(
+        const DroneConfig* const droneConfig,
+        const AmmoParams* const ammoParams,
+        const ITargetProvider* const targets,
         SimState& state, 
-        ITargetProvider* targets,
-        OutputData outputData,
-        const DroneConfig* droneConfig, 
-        float horizontalFlightRange,
-        float ammoTimeOfFlight,
-        float acceleration,
-        int simulation_count) override
+        OutputData& outputData) override
     {
+        if (!getAmmoTimeOfFlight(ammoTimeOfFlight, droneConfig, ammoParams)) 
+        {
+            return false;
+        }
+        if (!getHorizontalFlightRange(horizontalFlightRange, droneConfig, ammoParams, ammoTimeOfFlight)) 
+        {
+            return false;
+        }
+        if (!getAcceleration(acceleration, droneConfig)) 
+        {
+            return false;
+        }
+
         int targets_number = targets->getTargetCount();
-        TargetsData targetsData = targets->getTargetsData();
+        int timeSteps = targets->getTargetsTimeSteps();
 
         LOG_DEBUG("------ FRAME " << count << " ------");
-        LOG_INFO("Total simulation time elapsed: " << sim.state.totalSimTime << "[s]");
+        LOG_INFO("Total simulation time elapsed: " << state.totalSimTime << "[s]");
 
         // Знайшли координати цілей на даний момент
         std::vector<Coord> interpolatedPosition(targets_number);
         for (int i = 0; i < targets_number; i++)
         {
-            if (!interpolate(interpolatedPosition[i], i, state.totalSimTime, droneConfig, targetsData))
+            auto target = targets->getTarget(i);
+            if (!interpolate(interpolatedPosition[i], timeSteps, state.totalSimTime, droneConfig, target))
             {
                 return false;
             }
@@ -816,11 +843,12 @@ class AnalyticalSolver : public IBallisticSolver
                 float totalTime = timeToDropPoint + ammoTimeOfFlight;
 
                 Coord targetVelocity{};
+                auto target = targets->getTarget(targetIterator);
                 if (!getTargetVelocity(targetVelocity, 
-                    targetIterator, 
+                    timeSteps, 
                     state, 
                     droneConfig, 
-                    targetsData))
+                    target))
                 {
                     return false;
                 }
@@ -1049,11 +1077,12 @@ class AnalyticalSolver : public IBallisticSolver
         Coord hit = state.dronePosition + vecDirection * horizontalFlightRange;
         // 4) Шукаємо точку де буде ціль ціль через ammoTimeOfFlight
         Coord targetVelocity{};
+        auto target = targets->getTarget(state.currentTargetIndex);
         if (!getTargetVelocity(targetVelocity, 
-            state.currentTargetIndex, 
+            timeSteps, 
             state, 
             droneConfig, 
-            targetsData))
+            target))
         {
             return false;
         }
@@ -1084,11 +1113,12 @@ class AnalyticalSolver : public IBallisticSolver
         step->aimPoint = hit;
         step->predictedTarget = predictedPosition;
 
-        outputData.steps[simulation_count] = step;
-        outputData.totalSteps = simulation_count + 1;
+        outputData.steps[state.simulation_count] = step;
+        outputData.totalSteps = state.simulation_count + 1;
         if (state.droneState == MOVING && hitDistance <= droneConfig->hitRadius)
         {
             // Ура, реєструємо ураження цілі, зупиняємо симуляцію
+            state.finished = true;
             return true;
         }
 
@@ -1319,6 +1349,8 @@ class AnalyticalSolver : public IBallisticSolver
             default:
                 break;
         }
+
+        return true;
     }
 };
 
@@ -1333,20 +1365,24 @@ public:
         droneConfig = new DroneConfig();
         if (!getJSONDroneConfig(droneConfig))
         {
+            delete droneConfig;
+            droneConfig = nullptr;
             return false;
         }
         ammoParam = new AmmoParams();
-        if (!getJSONAmmoParamByType(droneConfig->ammoName, ammoParam, AMMO_JSON_FILE_NAME))
+        if (!getJSONAmmoParamByType(droneConfig->ammoName, ammoParam))
         {
+            delete ammoParam;
+            ammoParam = nullptr;
             return false;
         }
         return true;
     }
-    AmmoParams* getAmmoParams() override
+    AmmoParams* getAmmoParams() const override
     {
         return ammoParam;
     }
-    DroneConfig* getConfig() override
+    DroneConfig* getConfig() const override
     {
         return droneConfig;
     }
@@ -1355,10 +1391,12 @@ public:
         if (droneConfig != nullptr)
         {
             delete droneConfig;
+            droneConfig = nullptr;
         }
         if (ammoParam != nullptr)
         {
             delete ammoParam;
+            ammoParam = nullptr;
         }
     }
 };
@@ -1418,7 +1456,6 @@ IConfigLoader* createLoader(LoaderType type)
 MissionProcessor::MissionProcessor(IBallisticSolver* s, ITargetProvider* t)
     : solver(s), targets(t)
 {
-    simulation_count = 0;
     droneConfig = nullptr;
     ammoParams = nullptr;
 }
@@ -1452,24 +1489,39 @@ bool MissionProcessor::changeSolver(IBallisticSolver* newSolver)
     return true;
 }
 
+// 1. Взяти наступну ціль через targets->getTarget(currentIdx)
+// 2. Викликати solver->solve(dronePos, target.pos, altitude, ammo ...)
+// 3. Збільшити лічильник, повернути результат
 bool MissionProcessor::step()
 {
     if (solver == nullptr)
     {
         return false;
     }
-    solver->solve();
-    // 1. Взяти наступну ціль через targets->getTarget(currentIdx)
-    // 2. Викликати solver->solve(dronePos, target.pos, altitude, ammo ...)
-    // 3. Збільшити лічильник, повернути результат
-    simulation_count++;
-    state.totalSimTime = simulation_count * droneConfig->simTimeStep;
+    if (state.finished)
+    {
+        return false;
+    }
+    bool isOk = solver->solve(
+        droneConfig,
+        ammoParams,
+        targets,
+        state, 
+        outputData
+    );
+    if (isOk == false)
+    {
+        return false;
+    }
+    state.simulation_count++;
+    state.totalSimTime = state.simulation_count * droneConfig->simTimeStep;
+    outputData.totalSteps = state.simulation_count;
     return true;
 }
 
 bool MissionProcessor::hasNext()
 {
-    if (simulation_count <= SIM_MAX_STEPS)
+    if (!state.finished && state.simulation_count <= SIM_MAX_STEPS)
     {
         return true;
     }
@@ -1501,18 +1553,7 @@ bool MissionProcessor::init(LoaderType type)
     {
         return false;
     }
-    if (!getAmmoTimeOfFlight(ammoTimeOfFlight, droneConfig, ammoParams)) 
-    {
-        return false;
-    }
-    if (!getHorizontalFlightRange(horizontalFlightRange, droneConfig, ammoParams, ammoTimeOfFlight)) 
-    {
-        return false;
-    }
-    if (!getAcceleration(acceleration, droneConfig)) 
-    {
-        return false;
-    }
+    outputData.steps = new SimStep*[SIM_MAX_STEPS + 1];
     // 
     state.dronePosition = droneConfig->startPos;
     state.droneZ = droneConfig->altitude;
@@ -1526,8 +1567,7 @@ bool MissionProcessor::init(LoaderType type)
 
 bool MissionProcessor::writeOutput()
 {
-    outputData.totalSteps = simulation_count;
-    if (!writeOutputToFile(outputData, SIMULATION_JSON_FILE_NAME)) 
+    if (!writeOutputToFile(outputData)) 
     {
         return false;
     }

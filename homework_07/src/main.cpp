@@ -20,5 +20,6 @@ int main()
         mission.step();
     }
     mission.writeOutput();
+
     return 0;
 }

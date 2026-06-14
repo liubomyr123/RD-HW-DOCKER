@@ -31,3 +31,23 @@ add_custom_command(
         ${CMAKE_CURRENT_SOURCE_DIR}/data/targets.json
         $<TARGET_FILE_DIR:ballistics_hw_7>/data/targets.json
 )
+
+option(ENABLE_ASAN "Enable AddressSanitizer" ON)
+
+if (ENABLE_ASAN)
+    add_library(asan_flags INTERFACE)
+
+    target_compile_options(asan_flags INTERFACE
+        -fsanitize=address,leak
+        -fno-omit-frame-pointer
+        -g
+    )
+
+    target_link_options(asan_flags INTERFACE
+        -fsanitize=address,leak
+    )
+
+    target_link_libraries(ballistics_lib PRIVATE asan_flags)
+    target_link_libraries(logger_lib PRIVATE asan_flags)
+    target_link_libraries(ballistics_hw_7 PRIVATE asan_flags)
+endif()

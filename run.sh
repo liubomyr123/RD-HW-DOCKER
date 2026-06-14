@@ -27,4 +27,10 @@ cmake --build --preset debug &&
 # ./build/relwithdebinfo/homework_05/telemetry_check homework_05/data/empty.txt
 # ./build/relwithdebinfo/homework_05/telemetry_check homework_05/data/good.txt
 
-./build/debug/homework_07/ballistics_hw_7
+# cd build/debug/homework_07
+# ./ballistics_hw_7
+
+echo "=== Running with AddressSanitizer + LeakSanitizer ==="
+ASAN_OPTIONS=detect_leaks=1:halt_on_error=1:verbosity=1 \
+cd build/debug/homework_07
+./ballistics_hw_7

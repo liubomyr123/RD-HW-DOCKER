@@ -41,7 +41,7 @@ add_custom_command(
         $<TARGET_FILE_DIR:ballistics_hw_7>/data/targets.json
 )
 
-option(ENABLE_ASAN "Enable AddressSanitizer" ON)
+option(ENABLE_ASAN "Enable AddressSanitizer" OFF)
 
 if (ENABLE_ASAN)
     add_library(asan_flags INTERFACE)

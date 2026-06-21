@@ -23,6 +23,7 @@ private:
 
 public:
     MissionProcessor(IBallisticSolver* s, ITargetProvider* t);
+    ~MissionProcessor();
 
     // Завантажити конфіг через IConfigLoader, підготувати дані для ітерації
     bool init(LoaderType type);
@@ -35,37 +36,4 @@ public:
     // Підмінити solver на льоту (Стратегія)
     bool changeSolver(IBallisticSolver* newSolver);
     bool writeOutput();
-
-    ~MissionProcessor()
-    {
-        if (solver != nullptr)
-        {
-            delete solver;
-        }
-        if (targets != nullptr)
-        {
-            delete targets;
-        }
-        if (droneConfig != nullptr)
-        {
-            delete droneConfig;
-        }
-        if (ammoParams != nullptr)
-        {
-            delete ammoParams;
-        }
-        if (outputData.steps)
-        {
-            for (size_t i = 0; i < outputData.totalSteps; i++)
-            {
-                delete outputData.steps[i];
-                outputData.steps[i] = nullptr;
-            }
-
-            delete[] outputData.steps;
-            outputData.steps = nullptr;
-            
-            outputData.totalSteps = 0;
-        }
-    }
 };

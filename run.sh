@@ -1,36 +1,52 @@
 #!/usr/bin/env bash
 
-rm -rf build
+set -e
 
-cmake --preset debug &&
-cmake --build --preset debug &&
-# ./build/debug/homework_05/telemetry_check homework_05/data/bad_invalid_number.txt
-# ./build/debug/homework_05/telemetry_check homework_05/data/bad_missing_field.txt
-# ./build/debug/homework_05/telemetry_check homework_05/data/bad_zero_delta.txt
-# ./build/debug/homework_05/telemetry_check homework_05/data/empty.txt
-# ./build/debug/homework_05/telemetry_check homework_05/data/good.txt
-# ./build/debug/homework_06/ballistics_check homework_06/data/sample_vog17.txt
+case "$1" in
+    asan)
+        echo "=== Building project ==="
+        rm -rf build
+        cmake --preset asan
+        cmake --build --preset asan
 
-# cmake --preset release &&
-# cmake --build --preset release &&
-# ./build/release/homework_05/telemetry_check homework_05/data/bad_invalid_number.txt
-# ./build/release/homework_05/telemetry_check homework_05/data/bad_missing_field.txt
-# ./build/release/homework_05/telemetry_check homework_05/data/bad_zero_delta.txt
-# ./build/release/homework_05/telemetry_check homework_05/data/empty.txt
-# ./build/release/homework_05/telemetry_check homework_05/data/good.txt
+        echo "=== Running with AddressSanitizer + LeakSanitizer ==="
+        ASAN_OPTIONS=detect_leaks=1:halt_on_error=1:verbosity=1 \
+        cd "build/asan/homework_07"
+        ./ballistics_hw_7
+        ;;
 
-# cmake --preset relwithdebinfo &&
-# cmake --build --preset relwithdebinfo &&
-# ./build/relwithdebinfo/homework_05/telemetry_check homework_05/data/bad_invalid_number.txt
-# ./build/relwithdebinfo/homework_05/telemetry_check homework_05/data/bad_missing_field.txt
-# ./build/relwithdebinfo/homework_05/telemetry_check homework_05/data/bad_zero_delta.txt
-# ./build/relwithdebinfo/homework_05/telemetry_check homework_05/data/empty.txt
-# ./build/relwithdebinfo/homework_05/telemetry_check homework_05/data/good.txt
+    ubasan)
+        echo "=== Building ASAN + UBSAN ==="
+        rm -rf build
+        cmake --preset asan-ubsan
+        cmake --build --preset asan-ubsan
 
-# cd build/debug/homework_07
-# ./ballistics_hw_7
+        echo "=== Running ASAN + UBSAN ==="
+        ASAN_OPTIONS=detect_leaks=1:halt_on_error=1:verbosity=1 \
+        UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1 \
+        ./build/asan-ubsan/homework_07/ballistics_hw_7
+        ;;
 
-echo "=== Running with AddressSanitizer + LeakSanitizer ==="
-ASAN_OPTIONS=detect_leaks=1:halt_on_error=1:verbosity=1 \
-cd build/debug/homework_07
-./ballistics_hw_7
+    valgrind)
+        echo "=== Building project ==="
+        rm -rf build
+        cmake --preset debug
+        cmake --build --preset debug
+
+        echo "=== Running with Valgrind ==="
+        cd "build/debug/homework_07"
+        valgrind \
+            --leak-check=full \
+            --show-leak-kinds=all \
+            --track-origins=yes \
+            --error-exitcode=1 \
+            ./ballistics_hw_7
+        ;;
+
+    *)
+        echo "Usage:"
+        echo "  ./run.sh asan"
+        echo "  ./run.sh valgrind"
+        exit 1
+        ;;
+esac

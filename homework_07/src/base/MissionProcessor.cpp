@@ -89,14 +89,20 @@ bool MissionProcessor::init(LoaderType type)
     }
     if (!configLoader->load())
     {
+        delete configLoader;
         return false;
     }
     droneConfig = configLoader->getConfig();
     ammoParams = configLoader->getAmmoParams();
     if (droneConfig == nullptr || ammoParams == nullptr)
     {
+        delete configLoader; 
         return false;
     }
+    // 
+    delete configLoader;
+    configLoader = nullptr;
+    // 
     if (targets == nullptr)
     {
         return false;
@@ -124,4 +130,37 @@ bool MissionProcessor::writeOutput()
         return false;
     }
     return true;
+}
+
+MissionProcessor::~MissionProcessor()
+{
+    if (solver != nullptr)
+    {
+        delete solver;
+    }
+    if (targets != nullptr)
+    {
+        delete targets;
+    }
+    if (droneConfig != nullptr)
+    {
+        delete droneConfig;
+    }
+    if (ammoParams != nullptr)
+    {
+        delete ammoParams;
+    }
+    if (outputData.steps)
+    {
+        for (size_t i = 0; i < outputData.totalSteps; i++)
+        {
+            delete outputData.steps[i];
+            outputData.steps[i] = nullptr;
+        }
+
+        delete[] outputData.steps;
+        outputData.steps = nullptr;
+        
+        outputData.totalSteps = 0;
+    }
 }

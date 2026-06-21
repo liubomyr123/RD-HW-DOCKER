@@ -29,14 +29,4 @@ DroneConfig* FileConfigLoader::getConfig() const
 }
 FileConfigLoader::~FileConfigLoader()
 {
-    if (droneConfig != nullptr)
-    {
-        delete droneConfig;
-        droneConfig = nullptr;
-    }
-    if (ammoParam != nullptr)
-    {
-        delete ammoParam;
-        ammoParam = nullptr;
-    }
 }

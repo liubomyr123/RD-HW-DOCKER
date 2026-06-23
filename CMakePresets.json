@@ -7,13 +7,24 @@
   },
   "configurePresets": [
     {
+      "name": "asan",
+      "displayName": "ASan Debug",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/asan",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "ENABLE_ASAN": "ON"
+      }
+    },
+    {
       "name": "debug",
       "displayName": "Debug",
       "description": "Debug build для занять блоку 2: символи для GDB і зрозуміла структура build/debug.",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/debug",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug"
+        "CMAKE_BUILD_TYPE": "Debug",
+        "ENABLE_ASAN": "OFF"
       }
     },
     {
@@ -52,6 +63,10 @@
       "displayName": "Build Debug",
       "description": "Зібрати debug preset після configure.",
       "configurePreset": "debug"
+    },
+    {
+      "name": "asan",
+      "configurePreset": "asan"
     },
     {
       "name": "aarch64-debug",

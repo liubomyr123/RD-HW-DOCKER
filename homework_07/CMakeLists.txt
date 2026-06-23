@@ -1,0 +1,62 @@
+cmake_minimum_required(VERSION 3.20)
+
+project(ballistics_hw_7 CXX)
+
+add_library(ballistics_lib
+    src/base/Ballistics.cpp
+    src/base/MissionProcessor.cpp
+    src/factories/LoaderFactory.cpp
+    src/factories/ProviderFactory.cpp
+    src/factories/SolverFactory.cpp
+    src/loaders/FileConfigLoader.cpp
+    src/providers/JsonTargetProvider.cpp
+    src/solvers/AnalyticalSolver.cpp
+)
+target_include_directories(ballistics_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_compile_options(ballistics_lib PRIVATE -Wall -Wextra -pedantic)
+
+add_library(logger_lib src/base/Logger.cpp)
+target_include_directories(logger_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_compile_options(logger_lib PRIVATE -Wall -Wextra -pedantic)
+
+add_executable(ballistics_hw_7 src/main.cpp)
+target_link_libraries(ballistics_hw_7 PRIVATE ballistics_lib logger_lib)
+target_compile_options(ballistics_hw_7 PRIVATE -Wall -Wextra -pedantic)
+
+add_custom_command(
+    TARGET ballistics_hw_7 POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+        $<TARGET_FILE_DIR:ballistics_hw_7>/data
+
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_CURRENT_SOURCE_DIR}/data/config.json
+        $<TARGET_FILE_DIR:ballistics_hw_7>/data/config.json
+
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_CURRENT_SOURCE_DIR}/data/ammo.json
+        $<TARGET_FILE_DIR:ballistics_hw_7>/data/ammo.json
+
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_CURRENT_SOURCE_DIR}/data/targets.json
+        $<TARGET_FILE_DIR:ballistics_hw_7>/data/targets.json
+)
+
+option(ENABLE_ASAN "Enable AddressSanitizer" OFF)
+
+if (ENABLE_ASAN)
+    add_library(asan_flags INTERFACE)
+
+    target_compile_options(asan_flags INTERFACE
+        -fsanitize=address,leak
+        -fno-omit-frame-pointer
+        -g
+    )
+
+    target_link_options(asan_flags INTERFACE
+        -fsanitize=address,leak
+    )
+
+    target_link_libraries(ballistics_lib PRIVATE asan_flags)
+    target_link_libraries(logger_lib PRIVATE asan_flags)
+    target_link_libraries(ballistics_hw_7 PRIVATE asan_flags)
+endif()

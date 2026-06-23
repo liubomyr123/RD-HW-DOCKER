@@ -4,18 +4,18 @@
 
 IConfigLoader* createLoader(LoaderType type)
 {
-    IConfigLoader* provider = nullptr;
+    IConfigLoader* loader = nullptr;
     switch (type) {
         case LoaderType::FILE:
         {
-            provider = new FileConfigLoader();
+            loader = new FileConfigLoader();
             break;
         }
         default:
         {
-            provider = nullptr;
+            loader = nullptr;
             break;
         }
     }
-    return provider;
+    return loader;
 }

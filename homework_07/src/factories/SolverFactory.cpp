@@ -4,18 +4,18 @@
 
 IBallisticSolver* createSolver(SolverType type)
 {
-    IBallisticSolver* provider = nullptr;
+    IBallisticSolver* solver = nullptr;
     switch (type) {
         case SolverType::ANALYTICAL:
         {
-            provider = new AnalyticalSolver();
+            solver = new AnalyticalSolver();
             break;
         }
         default:
         {
-            provider = nullptr;
+            solver = nullptr;
             break;
         }
     }
-    return provider;
+    return solver;
 }

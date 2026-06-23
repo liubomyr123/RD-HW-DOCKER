@@ -1,3 +1,5 @@
+#pragma once
+
 #include "interfaces/IConfigLoader.hpp"
 
 // Читає конфіг та параметри боєприпасу з файлу

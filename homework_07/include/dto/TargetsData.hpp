@@ -1,9 +1,10 @@
 #pragma once
 
-#include "dto/Coord.hpp"
+#include "dto/Target.hpp"
+#include <vector>
 
 struct TargetsData {
     int targetCount = 0;
     int timeSteps = 0;
-    Coord** targets = nullptr;
+    std::vector<Target*> targets;
 };

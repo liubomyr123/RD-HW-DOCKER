@@ -13,7 +13,7 @@ int JsonTargetProvider::getTargetCount() const
 {
     return targetsData.targetCount;
 }
-Coord* JsonTargetProvider::getTarget(int idx) const
+Target* JsonTargetProvider::getTarget(int idx) const
 {
     return targetsData.targets[idx];
 }
@@ -23,12 +23,11 @@ int JsonTargetProvider::getTargetsTimeSteps() const
 }
 JsonTargetProvider::~JsonTargetProvider()
 {
-    if (targetsData.targets)
+    for (auto* target : targetsData.targets)
     {
-        for (int i = 0; i < targetsData.targetCount; i++)
-            delete[] targetsData.targets[i];
-
-        delete[] targetsData.targets;
-        targetsData.targets = nullptr;
+        delete[] target->coord;
+        delete target;
     }
+
+    targetsData.targets.clear();
 }

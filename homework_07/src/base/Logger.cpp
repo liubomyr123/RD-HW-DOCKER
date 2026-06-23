@@ -1,9 +1,10 @@
 #include "base/Logger.hpp"
 #include <iostream>
+#include "Common.hpp"
 
 Logger::Logger() 
 {
-    file.open("data/app.log", std::ios::out | std::ios::trunc);
+    file.open(LOGGER_FILE_NAME, std::ios::out | std::ios::trunc);
 }
 
 Logger& Logger::instance() 

@@ -111,7 +111,8 @@ bool MissionProcessor::init(LoaderType type)
     {
         return false;
     }
-    outputData.steps = new SimStep*[SIM_MAX_STEPS + 1];
+    outputData.steps.clear();
+    outputData.steps.resize(SIM_MAX_STEPS + 1);
     // 
     state.dronePosition = droneConfig->startPos;
     state.droneZ = droneConfig->altitude;
@@ -150,17 +151,11 @@ MissionProcessor::~MissionProcessor()
     {
         delete ammoParams;
     }
-    if (outputData.steps)
+    for (auto* step : outputData.steps)
     {
-        for (size_t i = 0; i < outputData.totalSteps; i++)
-        {
-            delete outputData.steps[i];
-            outputData.steps[i] = nullptr;
-        }
-
-        delete[] outputData.steps;
-        outputData.steps = nullptr;
-        
-        outputData.totalSteps = 0;
+        delete step;
     }
+
+    outputData.steps.clear();
+    outputData.totalSteps = 0;
 }

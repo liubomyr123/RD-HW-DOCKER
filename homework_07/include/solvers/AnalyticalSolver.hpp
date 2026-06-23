@@ -1,3 +1,5 @@
+#pragma once
+
 #include "interfaces/IBallisticSolver.hpp"
 
 // Аналітичне рішення (формула з ДЗ1)

@@ -34,7 +34,7 @@ bool AnalyticalSolver::solve(
     for (int i = 0; i < targets_number; i++)
     {
         auto target = targets->getTarget(i);
-        if (!interpolate(interpolatedPosition[i], timeSteps, state.totalSimTime, droneConfig, target))
+        if (!interpolate(interpolatedPosition[i], timeSteps, state.totalSimTime, droneConfig, target->coord))
         {
             return false;
         }
@@ -118,7 +118,7 @@ bool AnalyticalSolver::solve(
                 timeSteps, 
                 state, 
                 droneConfig, 
-                target))
+                target->coord))
             {
                 return false;
             }
@@ -352,7 +352,7 @@ bool AnalyticalSolver::solve(
         timeSteps, 
         state, 
         droneConfig, 
-        target))
+        target->coord))
     {
         return false;
     }

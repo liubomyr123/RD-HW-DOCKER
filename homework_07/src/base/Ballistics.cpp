@@ -122,15 +122,18 @@ bool getTargetsJSONData(TargetsData& targetsData)
          */
         targetsData.targetCount = jData.targetCount;
         targetsData.timeSteps = jData.timeSteps;
-        targetsData.targets = new Coord*[jData.targetCount];
+        targetsData.targets.clear();
+        targetsData.targets.reserve(jData.targetCount);
         for (int i = 0; i < jData.targetCount; i++)
         {
-            targetsData.targets[i] = new Coord[jData.timeSteps];
+            auto target = new Target{};
+            target->coord = new Coord[jData.timeSteps];
+            targetsData.targets.push_back(target);
             const auto targetPositions = jData.targets[i].positions;
             for (int j = 0; j < jData.timeSteps; j++)
             {
-                targetsData.targets[i][j].x = targetPositions[j].x;
-                targetsData.targets[i][j].y = targetPositions[j].y;
+                target->coord[j].x = targetPositions[j].x;
+                target->coord[j].y = targetPositions[j].y;
             }
         }
     }
